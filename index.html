@@ -23,6 +23,10 @@ background:black;
 max-height:80vh
 }
 
+video{
+display:none
+}
+
 select,input,button{
 margin-top:14px
 }
@@ -52,21 +56,20 @@ display:none
 
 <script>
 
-const canvas = document.getElementById("screen")
-const ctx = canvas.getContext("2d")
+const canvas=document.getElementById("screen")
+const ctx=canvas.getContext("2d")
 
-const base = document.getElementById("base")
-const overlay = document.getElementById("overlay")
+const base=document.getElementById("base")
+const overlay=document.getElementById("overlay")
 
-const pick = document.getElementById("filepick")
-const save = document.getElementById("save")
-const ratio = document.getElementById("ratio")
+const pick=document.getElementById("filepick")
+const save=document.getElementById("save")
+const ratio=document.getElementById("ratio")
 
 base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
 let fade=0
 let swap=false
-let recording=false
 
 let recorder
 let parts=[]
@@ -138,7 +141,6 @@ startRecorder()
 
 base.play().then(()=>{
 overlay.pause()
-recording=true
 loop()
 })
 
@@ -158,7 +160,6 @@ swap=true
 if(swap){
 
 fade+=0.02
-
 if(fade>1)fade=1
 
 overlay.volume=fade
@@ -170,7 +171,6 @@ ctx.globalAlpha=1
 }
 
 if(overlay.ended){
-recording=false
 recorder.stop()
 return
 }
