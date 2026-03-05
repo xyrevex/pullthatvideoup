@@ -1,22 +1,24 @@
 <!DOCTYPE html>
+
 <html>
 <head>
 <meta charset="UTF-8">
-<title>video mixer</title>
+<title>video</title>
 
 <style>
 body{
-background:#0e0e0e;
+background:#0f0f0f;
 font-family:sans-serif;
 display:flex;
-flex-direction:column;
 align-items:center;
 justify-content:center;
+flex-direction:column;
 height:100vh;
+margin:0;
 color:white
 }
 
-#stage{
+#frame{
 position:relative;
 width:720px;
 height:405px;
@@ -31,7 +33,7 @@ height:100%;
 object-fit:cover
 }
 
-#clip2{
+#overlay{
 opacity:0
 }
 
@@ -39,72 +41,77 @@ input{
 margin-top:20px
 }
 </style>
+
 </head>
 
 <body>
 
-<div id="stage">
-<video id="clip1" src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"></video>
-<video id="clip2" muted></video>
+<div id="frame">
+<video id="base" playsinline preload="auto"></video>
+<video id="overlay" muted playsinline></video>
 </div>
 
-<input type="file" id="pick" accept="video/*">
+<input type="file" id="filepick" accept="video/*">
 
 <script>
 
-let intro = document.getElementById("clip1")
-let userClip = document.getElementById("clip2")
-let chooser = document.getElementById("pick")
+const base = document.getElementById("base")
+const overlay = document.getElementById("overlay")
+const pick = document.getElementById("filepick")
 
-chooser.addEventListener("change", function(e){
+base.src = "https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
-let file = e.target.files[0]
+pick.onchange = e => {
+
+const file = e.target.files[0]
 if(!file) return
 
-let url = URL.createObjectURL(file)
+overlay.src = URL.createObjectURL(file)
+overlay.muted = true
 
-userClip.src = url
-userClip.muted = true
+base.currentTime = 0
+overlay.currentTime = 0
 
-intro.currentTime = 0
-intro.play()
-
-intro.addEventListener("timeupdate", beginSwap)
-
+base.play().then(()=>{
+watch()
 })
 
-function beginSwap(){
+}
 
-if(intro.currentTime >= 2.30){
+function watch(){
 
-intro.removeEventListener("timeupdate", beginSwap)
+const timer = setInterval(()=>{
 
-userClip.currentTime = 0
-userClip.play()
+if(base.currentTime >= 2.30){
 
-fadeSwap()
+clearInterval(timer)
+
+overlay.play()
+blend()
 
 }
 
+},30)
+
 }
 
-function fadeSwap(){
+function blend(){
 
-let progress = 0
+let t = 0
 
-let fade = setInterval(function(){
+const f = setInterval(()=>{
 
-progress += 0.04
+t += 0.05
 
-intro.style.opacity = 1 - progress
-userClip.style.opacity = progress
+base.style.opacity = 1 - t
+overlay.style.opacity = t
 
-if(progress >= 1){
-clearInterval(fade)
-intro.pause()
+if(t >= 1){
+clearInterval(f)
+base.pause()
 }
 
-},40)
+},30)
 
 }
 
