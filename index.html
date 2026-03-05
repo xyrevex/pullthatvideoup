@@ -25,7 +25,7 @@ select,input,button{margin-top:14px}
 <input type="file" id="filepick" accept="video/*">
 <button id="save" disabled>download mp4</button>
 
-<video id="base" playsinline preload="auto"></video> <video id="overlay" playsinline></video>
+<video id="base" playsinline preload="auto" crossorigin="anonymous"></video> <video id="overlay" playsinline></video>
 
 <script>
 const canvas=document.getElementById("screen")
@@ -71,8 +71,12 @@ overlay.src=URL.createObjectURL(file)
 overlay.volume=0
 fade=0; swap=false; finished=false
 base.currentTime=0; overlay.currentTime=0
+
+overlay.onloadeddata=()=>{
 startRecorder()
 base.play().then(()=>{overlay.pause(); loop()})
+}
+}
 }
 
 function loop(){
