@@ -18,26 +18,19 @@ margin:0;
 color:white
 }
 
-#frame{
-position:relative;
-width:720px;
-height:405px;
-background:black;
-overflow:hidden
-}
-
-video{
-display:none
+#wrap{
+display:flex;
+flex-direction:column;
+align-items:center
 }
 
 canvas{
-width:720px;
-height:405px;
-background:black
+background:black;
+max-height:80vh
 }
 
-input,button{
-margin-top:16px
+select,input,button{
+margin-top:14px
 }
 
 #save{
@@ -49,26 +42,58 @@ display:none
 
 <body>
 
-<canvas id="screen" width="1280" height="720"></canvas>
+<div id="wrap">
 
-<video id="base" playsinline preload="auto"></video> <video id="overlay" playsinline></video>
+<canvas id="screen"></canvas>
+
+<select id="ratio">
+<option value="9:16" selected>9:16</option>
+<option value="16:9">16:9</option>
+<option value="4:3">4:3</option>
+<option value="1:1">1:1</option>
+</select>
 
 <input type="file" id="filepick" accept="video/*">
 <button id="save">download</button>
 
+</div>
+
+<video id="base" playsinline preload="auto"></video> <video id="overlay" playsinline></video>
+
 <script>
 
+const canvas = document.getElementById("screen")
+const ctx = canvas.getContext("2d")
 const base = document.getElementById("base")
 const overlay = document.getElementById("overlay")
 const pick = document.getElementById("filepick")
-const canvas = document.getElementById("screen")
-const ctx = canvas.getContext("2d")
 const save = document.getElementById("save")
+const ratio = document.getElementById("ratio")
 
 base.src = "https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
 let fade = 0
 let swap = false
+
+function setRatio(r){
+
+let w = 1080
+let h = 1920
+
+if(r==="16:9"){w=1920;h=1080}
+if(r==="4:3"){w=1440;h=1080}
+if(r==="1:1"){w=1080;h=1080}
+
+canvas.width = w
+canvas.height = h
+
+}
+
+setRatio("9:16")
+
+ratio.onchange = ()=>{
+setRatio(ratio.value)
+}
 
 let stream = canvas.captureStream()
 let recorder = new MediaRecorder(stream,{mimeType:"video/webm"})
@@ -102,16 +127,36 @@ overlay.currentTime = 0
 
 overlay.volume = 0
 
+fade = 0
+swap = false
+
 parts = []
+
+recorder = new MediaRecorder(canvas.captureStream(),{mimeType:"video/webm"})
+recorder.ondataavailable = e=>{
+if(e.data.size>0) parts.push(e.data)
+}
+recorder.onstop = ()=>{
+const file = new Blob(parts,{type:"video/webm"})
+const url = URL.createObjectURL(file)
+save.style.display="inline"
+save.onclick=()=>{
+const a=document.createElement("a")
+a.href=url
+a.download="video.webm"
+a.click()
+}
+}
+
 recorder.start()
 
 base.play().then(()=>{
-render()
+draw()
 })
 
 }
 
-function render(){
+function draw(){
 
 ctx.drawImage(base,0,0,canvas.width,canvas.height)
 
@@ -133,7 +178,7 @@ recorder.stop()
 return
 }
 
-requestAnimationFrame(render)
+requestAnimationFrame(draw)
 
 }
 
