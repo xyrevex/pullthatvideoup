@@ -4,36 +4,13 @@
 <head>
 <meta charset="UTF-8">
 <title>video</title>
-
 <style>
-body{
-background:#0f0f0f;
-font-family:sans-serif;
-display:flex;
-align-items:center;
-justify-content:center;
-flex-direction:column;
-height:100vh;
-margin:0;
-color:white
-}
-
-canvas{
-background:black;
-max-height:70vh
-}
-
-video{
-display:none
-}
-
-select,input,button{
-margin-top:14px
-}
+body{background:#0f0f0f;font-family:sans-serif;display:flex;align-items:center;justify-content:center;flex-direction:column;height:100vh;margin:0;color:white}
+canvas{background:black;max-height:70vh}
+video{display:none}
+select,input,button{margin-top:14px}
 </style>
-
 </head>
-
 <body>
 
 <canvas id="screen"></canvas>
@@ -46,28 +23,23 @@ margin-top:14px
 </select>
 
 <input type="file" id="filepick" accept="video/*">
-<button id="save">download mp4</button>
+<button id="save" disabled>download mp4</button>
 
 <video id="base" playsinline preload="auto"></video> <video id="overlay" playsinline></video>
 
 <script>
-
 const canvas=document.getElementById("screen")
 const ctx=canvas.getContext("2d")
-
 const base=document.getElementById("base")
 const overlay=document.getElementById("overlay")
-
 const pick=document.getElementById("filepick")
 const save=document.getElementById("save")
 const ratio=document.getElementById("ratio")
 
 base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
-let fade=0
-let swap=false
-let finished=false
-let webmBlob=null
+let fade=0, swap=false, finished=false, webmBlob=null
+let recorder, parts=[]
 
 function setRatio(r){
 let w=1080,h=1920
@@ -77,11 +49,8 @@ if(r==="1:1"){w=1080;h=1080}
 canvas.width=w
 canvas.height=h
 }
-
 setRatio("9:16")
 ratio.onchange=()=>setRatio(ratio.value)
-
-let recorder, parts=[]
 
 function startRecorder(){
 parts=[]
@@ -89,8 +58,10 @@ let mime="video/mp4"
 if(!MediaRecorder.isTypeSupported(mime)) mime="video/webm"
 recorder=new MediaRecorder(canvas.captureStream(),{mimeType:mime})
 recorder.ondataavailable=e=>{if(e.data.size>0)parts.push(e.data)}
-recorder.onstop=()=>{webmBlob=new Blob(parts,{type:recorder.mimeType}); finished=true}
+recorder.onstop=()=>{webmBlob=new Blob(parts,{type:recorder.mimeType}); finished=true; save.disabled=false; save.textContent="download mp4"}
 recorder.start()
+save.disabled=true
+save.textContent="recording..."
 }
 
 pick.onchange=e=>{
@@ -98,11 +69,8 @@ const file=e.target.files[0]
 if(!file)return
 overlay.src=URL.createObjectURL(file)
 overlay.volume=0
-fade=0
-swap=false
-finished=false
-base.currentTime=0
-overlay.currentTime=0
+fade=0; swap=false; finished=false
+base.currentTime=0; overlay.currentTime=0
 startRecorder()
 base.play().then(()=>{overlay.pause(); loop()})
 }
@@ -131,7 +99,6 @@ a.href=url
 a.download="video.mp4"
 a.click()
 }
-
 </script>
 
 </body>
