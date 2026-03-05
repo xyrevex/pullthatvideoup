@@ -20,7 +20,7 @@ color:white
 
 canvas{
 background:black;
-max-height:80vh
+max-height:70vh
 }
 
 video{
@@ -31,8 +31,25 @@ select,input,button{
 margin-top:14px
 }
 
-#save{
-display:none
+#barwrap{
+width:260px;
+height:12px;
+background:#222;
+margin-top:14px;
+border-radius:6px;
+overflow:hidden
+}
+
+#bar{
+height:100%;
+width:0%;
+background:#7c6cff
+}
+
+#status{
+font-size:13px;
+opacity:.8;
+margin-top:6px
 }
 </style>
 
@@ -50,9 +67,17 @@ display:none
 </select>
 
 <input type="file" id="filepick" accept="video/*">
-<button id="save">download</button>
+<button id="save">download mp4</button>
+
+<div id="barwrap">
+<div id="bar"></div>
+</div>
+
+<div id="status">idle</div>
 
 <video id="base" playsinline preload="auto"></video> <video id="overlay" playsinline></video>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
 
 <script>
 
@@ -66,6 +91,9 @@ const pick=document.getElementById("filepick")
 const save=document.getElementById("save")
 const ratio=document.getElementById("ratio")
 
+const bar=document.getElementById("bar")
+const status=document.getElementById("status")
+
 base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
 let fade=0
@@ -73,6 +101,7 @@ let swap=false
 
 let recorder
 let parts=[]
+let webmBlob=null
 
 function setRatio(r){
 
@@ -90,32 +119,21 @@ canvas.height=h
 
 setRatio("9:16")
 
-ratio.onchange=()=>{
-setRatio(ratio.value)
-}
+ratio.onchange=()=>setRatio(ratio.value)
 
 function startRecorder(){
 
 parts=[]
 
-recorder=new MediaRecorder(canvas.captureStream(),{mimeType:"video/mp4"})
+recorder=new MediaRecorder(canvas.captureStream(),{mimeType:"video/webm"})
 
 recorder.ondataavailable=e=>{
 if(e.data.size>0)parts.push(e.data)
 }
 
 recorder.onstop=()=>{
-const blob=new Blob(parts,{type:"video/mp4"})
-const url=URL.createObjectURL(blob)
-
-save.style.display="inline"
-
-save.onclick=()=>{
-const a=document.createElement("a")
-a.href=url
-a.download="video.mp4"
-a.click()
-}
+webmBlob=new Blob(parts,{type:"video/webm"})
+status.textContent="ready"
 }
 
 recorder.start()
@@ -137,6 +155,8 @@ swap=false
 base.currentTime=0
 overlay.currentTime=0
 
+status.textContent="rendering preview"
+
 startRecorder()
 
 base.play().then(()=>{
@@ -152,7 +172,7 @@ ctx.clearRect(0,0,canvas.width,canvas.height)
 
 ctx.drawImage(base,0,0,canvas.width,canvas.height)
 
-if(base.currentTime>=2 && !swap){
+if(base.currentTime>=1.8 && !swap){
 overlay.play()
 swap=true
 }
@@ -176,6 +196,50 @@ return
 }
 
 requestAnimationFrame(loop)
+
+}
+
+save.onclick=async()=>{
+
+if(!webmBlob)return
+
+status.textContent="loading encoder"
+bar.style.width="0%"
+
+const {createFFmpeg,fetchFile}=FFmpeg
+
+const ffmpeg=createFFmpeg({
+log:false,
+progress:p=>{
+let percent=Math.floor(p.ratio*100)
+bar.style.width=percent+"%"
+status.textContent="encoding "+percent+"%"
+}
+})
+
+await ffmpeg.load()
+
+status.textContent="preparing"
+
+ffmpeg.FS("writeFile","input.webm",await fetchFile(webmBlob))
+
+await ffmpeg.run(
+"-i","input.webm",
+"-c:v","libx264",
+"-pix_fmt","yuv420p",
+"output.mp4"
+)
+
+const data=ffmpeg.FS("readFile","output.mp4")
+
+const url=URL.createObjectURL(new Blob([data.buffer],{type:"video/mp4"}))
+
+status.textContent="download ready"
+
+const a=document.createElement("a")
+a.href=url
+a.download="video.mp4"
+a.click()
 
 }
 
