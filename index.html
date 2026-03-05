@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>video mixer</title>
+
+<style>
+body{
+background:#0e0e0e;
+font-family:sans-serif;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+height:100vh;
+color:white
+}
+
+#stage{
+position:relative;
+width:720px;
+height:405px;
+background:black;
+overflow:hidden
+}
+
+video{
+position:absolute;
+width:100%;
+height:100%;
+object-fit:cover
+}
+
+#clip2{
+opacity:0
+}
+
+input{
+margin-top:20px
+}
+</style>
+</head>
+
+<body>
+
+<div id="stage">
+<video id="clip1" src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"></video>
+<video id="clip2" muted></video>
+</div>
+
+<input type="file" id="pick" accept="video/*">
+
+<script>
+
+let intro = document.getElementById("clip1")
+let userClip = document.getElementById("clip2")
+let chooser = document.getElementById("pick")
+
+chooser.addEventListener("change", function(e){
+
+let file = e.target.files[0]
+if(!file) return
+
+let url = URL.createObjectURL(file)
+
+userClip.src = url
+userClip.muted = true
+
+intro.currentTime = 0
+intro.play()
+
+intro.addEventListener("timeupdate", beginSwap)
+
+})
+
+function beginSwap(){
+
+if(intro.currentTime >= 2.30){
+
+intro.removeEventListener("timeupdate", beginSwap)
+
+userClip.currentTime = 0
+userClip.play()
+
+fadeSwap()
+
+}
+
+}
+
+function fadeSwap(){
+
+let progress = 0
+
+let fade = setInterval(function(){
+
+progress += 0.04
+
+intro.style.opacity = 1 - progress
+userClip.style.opacity = progress
+
+if(progress >= 1){
+clearInterval(fade)
+intro.pause()
+}
+
+},40)
+
+}
+
+</script>
+
+</body>
+</html>
