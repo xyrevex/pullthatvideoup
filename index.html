@@ -98,14 +98,14 @@ function startRecorder(){
 
 parts=[]
 
-recorder=new MediaRecorder(canvas.captureStream(),{mimeType:"video/webm"})
+recorder=new MediaRecorder(canvas.captureStream(),{mimeType:"video/mp4"})
 
 recorder.ondataavailable=e=>{
 if(e.data.size>0)parts.push(e.data)
 }
 
 recorder.onstop=()=>{
-const blob=new Blob(parts,{type:"video/webm"})
+const blob=new Blob(parts,{type:"video/mp4"})
 const url=URL.createObjectURL(blob)
 
 save.style.display="inline"
@@ -113,7 +113,7 @@ save.style.display="inline"
 save.onclick=()=>{
 const a=document.createElement("a")
 a.href=url
-a.download="video.webm"
+a.download="video.mp4"
 a.click()
 }
 }
