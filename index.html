@@ -48,7 +48,7 @@ margin-top:20px
 
 <div id="frame">
 <video id="base" playsinline preload="auto"></video>
-<video id="overlay" muted playsinline></video>
+<video id="overlay" playsinline></video>
 </div>
 
 <input type="file" id="filepick" accept="video/*">
@@ -67,10 +67,11 @@ const file = e.target.files[0]
 if(!file) return
 
 overlay.src = URL.createObjectURL(file)
-overlay.muted = true
 
 base.currentTime = 0
 overlay.currentTime = 0
+
+overlay.volume = 0
 
 base.play().then(()=>{
 watch()
@@ -82,7 +83,7 @@ function watch(){
 
 const timer = setInterval(()=>{
 
-if(base.currentTime >= 2.30){
+if(base.currentTime >= 2){
 
 clearInterval(timer)
 
@@ -91,7 +92,7 @@ blend()
 
 }
 
-},30)
+},25)
 
 }
 
@@ -105,10 +106,12 @@ t += 0.05
 
 base.style.opacity = 1 - t
 overlay.style.opacity = t
+overlay.volume = t
 
 if(t >= 1){
 clearInterval(f)
 base.pause()
+overlay.volume = 1
 }
 
 },30)
