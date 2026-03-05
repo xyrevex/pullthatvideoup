@@ -27,18 +27,21 @@ overflow:hidden
 }
 
 video{
-position:absolute;
-width:100%;
-height:100%;
-object-fit:cover
+display:none
 }
 
-#overlay{
-opacity:0
+canvas{
+width:720px;
+height:405px;
+background:black
 }
 
-input{
-margin-top:20px
+input,button{
+margin-top:16px
+}
+
+#save{
+display:none
 }
 </style>
 
@@ -46,22 +49,48 @@ margin-top:20px
 
 <body>
 
-<div id="frame">
-<video id="base" playsinline preload="auto"></video>
-<video id="overlay" playsinline></video>
-</div>
+<canvas id="screen" width="1280" height="720"></canvas>
+
+<video id="base" playsinline preload="auto"></video> <video id="overlay" playsinline></video>
 
 <input type="file" id="filepick" accept="video/*">
+<button id="save">download</button>
 
 <script>
 
 const base = document.getElementById("base")
 const overlay = document.getElementById("overlay")
 const pick = document.getElementById("filepick")
+const canvas = document.getElementById("screen")
+const ctx = canvas.getContext("2d")
+const save = document.getElementById("save")
 
 base.src = "https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
-pick.onchange = e => {
+let fade = 0
+let swap = false
+
+let stream = canvas.captureStream()
+let recorder = new MediaRecorder(stream,{mimeType:"video/webm"})
+let parts = []
+
+recorder.ondataavailable = e=>{
+if(e.data.size>0) parts.push(e.data)
+}
+
+recorder.onstop = ()=>{
+const file = new Blob(parts,{type:"video/webm"})
+const url = URL.createObjectURL(file)
+save.style.display="inline"
+save.onclick=()=>{
+const a=document.createElement("a")
+a.href=url
+a.download="video.webm"
+a.click()
+}
+}
+
+pick.onchange = e=>{
 
 const file = e.target.files[0]
 if(!file) return
@@ -73,48 +102,38 @@ overlay.currentTime = 0
 
 overlay.volume = 0
 
+parts = []
+recorder.start()
+
 base.play().then(()=>{
-watch()
+render()
 })
 
 }
 
-function watch(){
+function render(){
 
-const timer = setInterval(()=>{
+ctx.drawImage(base,0,0,canvas.width,canvas.height)
 
-if(base.currentTime >= 2){
-
-clearInterval(timer)
-
+if(base.currentTime>=2 && !swap){
 overlay.play()
-blend()
-
+swap=true
 }
 
-},25)
-
+if(swap){
+fade+=0.02
+overlay.volume=fade
+ctx.globalAlpha=fade
+ctx.drawImage(overlay,0,0,canvas.width,canvas.height)
+ctx.globalAlpha=1
 }
 
-function blend(){
-
-let t = 0
-
-const f = setInterval(()=>{
-
-t += 0.05
-
-base.style.opacity = 1 - t
-overlay.style.opacity = t
-overlay.volume = t
-
-if(t >= 1){
-clearInterval(f)
-base.pause()
-overlay.volume = 1
+if(fade>=1 && overlay.ended){
+recorder.stop()
+return
 }
 
-},30)
+requestAnimationFrame(render)
 
 }
 
