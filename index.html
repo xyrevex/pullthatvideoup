@@ -52,11 +52,14 @@ ratio.onchange=()=>setRatio(ratio.value)
 
 base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
-function startRecorder(audioStream){
+// setup combined audio tracks
+let audioCtx=null, dest=null, baseSrc=null, overlaySrc=null
+
+function startRecorder(stream){
 parts=[]
 let mime="video/mp4"
 if(!MediaRecorder.isTypeSupported(mime)) mime="video/webm"
-recorder=new MediaRecorder(audioStream,{mimeType:mime})
+recorder=new MediaRecorder(stream,{mimeType:mime})
 recorder.ondataavailable=e=>{if(e.data.size>0)parts.push(e.data)}
 recorder.onstop=()=>{webmBlob=new Blob(parts,{type:recorder.mimeType}); finished=true; save.disabled=false; save.textContent="download mp4"}
 recorder.start()
@@ -72,17 +75,21 @@ overlay.volume=0
 fade=0; swap=false; finished=false
 base.currentTime=0; overlay.currentTime=0
 
-// combine audio and vid pls
-const audioCtx=new AudioContext()
-const dest=audioCtx.createMediaStreamDestination()
-const overlaySrc=audioCtx.createMediaElementSource(overlay)
+// create audio context once
+if(!audioCtx){
+audioCtx=new AudioContext()
+dest=audioCtx.createMediaStreamDestination()
+baseSrc=audioCtx.createMediaElementSource(base)
+overlaySrc=audioCtx.createMediaElementSource(overlay)
+baseSrc.connect(dest)
 overlaySrc.connect(dest)
+}
 
+// combine canvas video with audio tracks
 const canvasStream=canvas.captureStream()
 const combinedStream=new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()])
 
 startRecorder(combinedStream)
-
 base.play().then(()=>{overlay.pause(); renderLoop()})
 }
 
