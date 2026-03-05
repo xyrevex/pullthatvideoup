@@ -3,7 +3,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>video</title>
+<title>video merge</title>
 <style>
 body{background:#0f0f0f;font-family:sans-serif;display:flex;align-items:center;justify-content:center;flex-direction:column;height:100vh;margin:0;color:white}
 canvas{background:black;max-height:70vh}
@@ -25,7 +25,7 @@ select,input,button{margin-top:14px}
 <input type="file" id="filepick" accept="video/*">
 <button id="save" disabled>download mp4</button>
 
-<video id="base" playsinline preload="auto" crossorigin="anonymous"></video> <video id="overlay" playsinline></video>
+<video id="base" playsinline preload="auto" crossorigin="anonymous"></video> <video id="overlay" playsinline preload="auto"></video>
 
 <script>
 const canvas=document.getElementById("screen")
@@ -35,8 +35,6 @@ const overlay=document.getElementById("overlay")
 const pick=document.getElementById("filepick")
 const save=document.getElementById("save")
 const ratio=document.getElementById("ratio")
-
-base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
 let fade=0, swap=false, finished=false, webmBlob=null
 let recorder, parts=[]
@@ -51,6 +49,8 @@ canvas.height=h
 }
 setRatio("9:16")
 ratio.onchange=()=>setRatio(ratio.value)
+
+base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
 function startRecorder(){
 parts=[]
@@ -71,18 +71,20 @@ overlay.src=URL.createObjectURL(file)
 overlay.volume=0
 fade=0; swap=false; finished=false
 base.currentTime=0; overlay.currentTime=0
-
-overlay.onloadeddata=()=>{
 startRecorder()
-base.play().then(()=>{overlay.pause(); loop()})
-}
-}
+
+base.play().then(()=>{overlay.pause(); renderLoop()})
 }
 
-function loop(){
+function renderLoop(){
 ctx.clearRect(0,0,canvas.width,canvas.height)
 ctx.drawImage(base,0,0,canvas.width,canvas.height)
-if(base.currentTime>=1.8 && !swap){overlay.play(); swap=true}
+
+if(base.currentTime>=1.8 && !swap){
+overlay.play()
+swap=true
+}
+
 if(swap){
 fade+=0.02
 if(fade>1)fade=1
@@ -91,8 +93,13 @@ ctx.globalAlpha=fade
 ctx.drawImage(overlay,0,0,canvas.width,canvas.height)
 ctx.globalAlpha=1
 }
-if(overlay.ended){recorder.stop(); return}
-requestAnimationFrame(loop)
+
+if(overlay.ended){
+recorder.stop()
+return
+}
+
+requestAnimationFrame(renderLoop)
 }
 
 save.onclick=()=>{
