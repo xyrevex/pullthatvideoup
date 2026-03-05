@@ -52,11 +52,11 @@ ratio.onchange=()=>setRatio(ratio.value)
 
 base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
-function startRecorder(){
+function startRecorder(audioStream){
 parts=[]
 let mime="video/mp4"
 if(!MediaRecorder.isTypeSupported(mime)) mime="video/webm"
-recorder=new MediaRecorder(canvas.captureStream(),{mimeType:mime})
+recorder=new MediaRecorder(audioStream,{mimeType:mime})
 recorder.ondataavailable=e=>{if(e.data.size>0)parts.push(e.data)}
 recorder.onstop=()=>{webmBlob=new Blob(parts,{type:recorder.mimeType}); finished=true; save.disabled=false; save.textContent="download mp4"}
 recorder.start()
@@ -71,7 +71,17 @@ overlay.src=URL.createObjectURL(file)
 overlay.volume=0
 fade=0; swap=false; finished=false
 base.currentTime=0; overlay.currentTime=0
-startRecorder()
+
+// combine audio and vid pls
+const audioCtx=new AudioContext()
+const dest=audioCtx.createMediaStreamDestination()
+const overlaySrc=audioCtx.createMediaElementSource(overlay)
+overlaySrc.connect(dest)
+
+const canvasStream=canvas.captureStream()
+const combinedStream=new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()])
+
+startRecorder(combinedStream)
 
 base.play().then(()=>{overlay.pause(); renderLoop()})
 }
@@ -80,7 +90,7 @@ function renderLoop(){
 ctx.clearRect(0,0,canvas.width,canvas.height)
 ctx.drawImage(base,0,0,canvas.width,canvas.height)
 
-if(base.currentTime>=1.8 && !swap){
+if(base.currentTime>=1.5 && !swap){
 overlay.play()
 swap=true
 }
