@@ -3,22 +3,19 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>pull that video up</title>
+<title>video merge</title>
 <style>
-body{margin:0;background:#0e0e0e;color:#fff;font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh}
-canvas{background:#000;max-height:70vh}
-.controls{margin-top:14px;display:flex;gap:10px}
-progress{width:300px;height:10px;margin-top:10px}
+body{background:#0f0f0f;font-family:sans-serif;display:flex;align-items:center;justify-content:center;flex-direction:column;height:100vh;margin:0;color:white}
+canvas{background:black;max-height:70vh}
 video{display:none}
-button,input,select{background:#1c1c1c;color:#fff;border:0;padding:8px 12px}
-button:disabled{opacity:.5}
+select,input,button{margin-top:14px}
+progress{width:320px;margin-top:10px}
 </style>
 </head>
 <body>
 
-<canvas id="stage"></canvas>
+<canvas id="screen"></canvas>
 
-<div class="controls">
 <select id="ratio">
 <option value="9:16" selected>9:16</option>
 <option value="16:9">16:9</option>
@@ -26,43 +23,41 @@ button:disabled{opacity:.5}
 <option value="1:1">1:1</option>
 </select>
 
-<input type="file" id="upload" accept="video/*">
+<input type="file" id="filepick" accept="video/*">
 
-<button id="download" disabled>download mp4</button>
-
-</div>
+<button id="save" disabled>download mp4</button>
 
 <progress id="bar" value="0" max="1"></progress>
 
-<video id="intro" playsinline preload="auto" crossorigin="anonymous"></video> <video id="clip" playsinline preload="auto"></video>
+<video id="base" playsinline preload="auto" crossorigin="anonymous"></video> <video id="overlay" playsinline preload="auto"></video>
 
 <script>
 
-const canvas=document.getElementById("stage")
+const canvas=document.getElementById("screen")
 const ctx=canvas.getContext("2d")
 
-const intro=document.getElementById("intro")
-const clip=document.getElementById("clip")
+const base=document.getElementById("base")
+const overlay=document.getElementById("overlay")
 
-const upload=document.getElementById("upload")
-const download=document.getElementById("download")
+const pick=document.getElementById("filepick")
+const save=document.getElementById("save")
 const ratio=document.getElementById("ratio")
 const bar=document.getElementById("bar")
 
-intro.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
-
 let fade=0
-let fading=false
-let done=false
+let swap=false
+let finished=false
 
 let recorder
-let pieces=[]
+let parts=[]
 let blob=null
 
 let audioCtx
 let dest
-let introNode
-let clipNode
+let baseSrc
+let overlaySrc
+
+base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
 
 function setRatio(r){
 let w=1080
@@ -75,126 +70,132 @@ canvas.height=h
 }
 
 setRatio("9:16")
-
 ratio.onchange=()=>setRatio(ratio.value)
 
-function startCapture(stream){
-pieces=[]
+function startRecorder(stream){
+
+parts=[]
+
 let type="video/mp4"
 if(!MediaRecorder.isTypeSupported(type)) type="video/webm"
 
 recorder=new MediaRecorder(stream,{mimeType:type})
 
 recorder.ondataavailable=e=>{
-if(e.data.size>0) pieces.push(e.data)
+if(e.data.size>0) parts.push(e.data)
 }
 
 recorder.onstop=()=>{
-blob=new Blob(pieces,{type:recorder.mimeType})
-done=true
-download.disabled=false
-download.textContent="download mp4"
+blob=new Blob(parts,{type:recorder.mimeType})
+finished=true
+save.disabled=false
+save.textContent="download mp4"
 }
 
 recorder.start()
 
-download.disabled=true
-download.textContent="rendering"
+save.disabled=true
+save.textContent="rendering"
+
 }
 
-upload.onchange=e=>{
+pick.onchange=e=>{
 
 const file=e.target.files[0]
 if(!file) return
 
-clip.src=URL.createObjectURL(file)
+overlay.src=URL.createObjectURL(file)
 
 fade=0
-fading=false
-done=false
+swap=false
+finished=false
 
-intro.currentTime=0
-clip.currentTime=0
+base.currentTime=0
+overlay.currentTime=0
 
 if(!audioCtx){
 
 audioCtx=new AudioContext()
-
 dest=audioCtx.createMediaStreamDestination()
 
-introNode=audioCtx.createMediaElementSource(intro)
-clipNode=audioCtx.createMediaElementSource(clip)
+baseSrc=audioCtx.createMediaElementSource(base)
+overlaySrc=audioCtx.createMediaElementSource(overlay)
 
-introNode.connect(dest)
-clipNode.connect(dest)
+baseSrc.connect(dest)
+overlaySrc.connect(dest)
 
 }
 
 const canvasStream=canvas.captureStream()
 
-const merged=new MediaStream([
+const combined=new MediaStream([
 ...canvasStream.getVideoTracks(),
 ...dest.stream.getAudioTracks()
 ])
 
-startCapture(merged)
+startRecorder(combined)
 
-intro.play()
+base.play()
 
-loop()
+renderLoop()
 
 }
 
-function loop(){
+function renderLoop(){
 
 ctx.clearRect(0,0,canvas.width,canvas.height)
 
-if(!fading){
-ctx.drawImage(intro,0,0,canvas.width,canvas.height)
+if(!swap){
+ctx.drawImage(base,0,0,canvas.width,canvas.height)
 }
 
-if(intro.currentTime>=1.5 && !fading){
-clip.play()
-fading=true
+if(base.currentTime>=1.5 && !swap){
+overlay.play()
+swap=true
 }
 
-if(fading){
+if(swap){
 
 fade+=0.02
 if(fade>1) fade=1
 
 if(fade<1){
-ctx.drawImage(intro,0,0,canvas.width,canvas.height)
+
+ctx.drawImage(base,0,0,canvas.width,canvas.height)
+
 ctx.globalAlpha=fade
-ctx.drawImage(clip,0,0,canvas.width,canvas.height)
+ctx.drawImage(overlay,0,0,canvas.width,canvas.height)
 ctx.globalAlpha=1
+
 }else{
-ctx.drawImage(clip,0,0,canvas.width,canvas.height)
+
+ctx.drawImage(overlay,0,0,canvas.width,canvas.height)
+
 }
 
-clip.volume=fade
+overlay.volume=fade
 bar.value=fade
 
 }
 
-if(clip.ended){
+if(overlay.ended){
 recorder.stop()
 return
 }
 
-requestAnimationFrame(loop)
+requestAnimationFrame(renderLoop)
 
 }
 
-download.onclick=()=>{
+save.onclick=()=>{
 
-if(!done || !blob) return
+if(!finished || !blob) return
 
 const url=URL.createObjectURL(blob)
 
 const a=document.createElement("a")
 a.href=url
-a.download="render.mp4"
+a.download="video.mp4"
 a.click()
 
 }
