@@ -39,7 +39,6 @@ const ratio=document.getElementById("ratio")
 
 let fade=0, swap=false, finished=false, webmBlob=null
 let recorder, parts=[]
-let running=false
 
 function setRatio(r){
 let w=1080,h=1920
@@ -83,7 +82,6 @@ overlay.volume=0
 fade=0
 swap=false
 finished=false
-running=true
 
 base.currentTime=0
 overlay.currentTime=0
@@ -112,10 +110,12 @@ renderLoop()
 }
 
 function renderLoop(){
-if(!running) return
 
 ctx.clearRect(0,0,canvas.width,canvas.height)
+
+if(!base.ended){
 ctx.drawImage(base,0,0,canvas.width,canvas.height)
+}
 
 if(base.currentTime>=1.5 && !swap){
 overlay.play()
@@ -133,12 +133,11 @@ ctx.globalAlpha=1
 }
 
 if(overlay.ended){
-running=false
 recorder.stop()
 return
 }
 
-setTimeout(renderLoop,1000/60)
+requestAnimationFrame(renderLoop)
 }
 
 save.onclick=()=>{
