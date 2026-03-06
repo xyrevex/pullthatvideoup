@@ -9,7 +9,6 @@ body{background:#0f0f0f;font-family:sans-serif;display:flex;align-items:center;j
 canvas{background:black;max-height:70vh}
 video{display:none}
 select,input,button{margin-top:14px}
-progress{width:320px;margin-top:10px}
 </style>
 </head>
 <body>
@@ -24,130 +23,99 @@ progress{width:320px;margin-top:10px}
 </select>
 
 <input type="file" id="filepick" accept="video/*">
-
 <button id="save" disabled>download mp4</button>
 
-<progress id="bar" value="0" max="1"></progress>
-
-<video id="base" playsinline preload="auto" crossorigin="anonymous"></video> <video id="overlay" playsinline preload="auto"></video>
+<video id="base" playsinline preload="auto" crossorigin="anonymous"></video>
+<video id="overlay" playsinline preload="auto"></video>
 
 <script>
-
 const canvas=document.getElementById("screen")
 const ctx=canvas.getContext("2d")
-
 const base=document.getElementById("base")
 const overlay=document.getElementById("overlay")
-
 const pick=document.getElementById("filepick")
 const save=document.getElementById("save")
 const ratio=document.getElementById("ratio")
-const bar=document.getElementById("bar")
 
-let fade=0
-let swap=false
-let finished=false
-
-let recorder
-let parts=[]
-let blob=null
-
-let audioCtx
-let dest
-let baseSrc
-let overlaySrc
-
-base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
+let fade=0, swap=false, finished=false, webmBlob=null
+let recorder, parts=[]
+let running=false
 
 function setRatio(r){
-let w=1080
-let h=1920
+let w=1080,h=1920
 if(r==="16:9"){w=1920;h=1080}
 if(r==="4:3"){w=1440;h=1080}
 if(r==="1:1"){w=1080;h=1080}
 canvas.width=w
 canvas.height=h
 }
-
 setRatio("9:16")
 ratio.onchange=()=>setRatio(ratio.value)
 
+base.src="https://raw.githubusercontent.com/xyrevex/pullthatvideoup/main/sourcevid.mp4"
+
+let audioCtx=null, dest=null, baseSrc=null, overlaySrc=null
+
 function startRecorder(stream){
-
 parts=[]
-
-let type="video/mp4"
-if(!MediaRecorder.isTypeSupported(type)) type="video/webm"
-
-recorder=new MediaRecorder(stream,{mimeType:type})
-
-recorder.ondataavailable=e=>{
-if(e.data.size>0) parts.push(e.data)
-}
-
+let mime="video/mp4"
+if(!MediaRecorder.isTypeSupported(mime)) mime="video/webm"
+recorder=new MediaRecorder(stream,{mimeType:mime})
+recorder.ondataavailable=e=>{if(e.data.size>0)parts.push(e.data)}
 recorder.onstop=()=>{
-blob=new Blob(parts,{type:recorder.mimeType})
+webmBlob=new Blob(parts,{type:recorder.mimeType})
 finished=true
 save.disabled=false
 save.textContent="download mp4"
 }
-
 recorder.start()
-
 save.disabled=true
-save.textContent="rendering"
-
+save.textContent="recording..."
 }
 
 pick.onchange=e=>{
-
 const file=e.target.files[0]
-if(!file) return
+if(!file)return
 
 overlay.src=URL.createObjectURL(file)
+overlay.volume=0
 
 fade=0
 swap=false
 finished=false
+running=true
 
 base.currentTime=0
 overlay.currentTime=0
 
 if(!audioCtx){
-
 audioCtx=new AudioContext()
 dest=audioCtx.createMediaStreamDestination()
-
 baseSrc=audioCtx.createMediaElementSource(base)
 overlaySrc=audioCtx.createMediaElementSource(overlay)
-
 baseSrc.connect(dest)
 overlaySrc.connect(dest)
-
 }
 
-const canvasStream=canvas.captureStream()
-
-const combined=new MediaStream([
+const canvasStream=canvas.captureStream(60)
+const combinedStream=new MediaStream([
 ...canvasStream.getVideoTracks(),
 ...dest.stream.getAudioTracks()
 ])
 
-startRecorder(combined)
+startRecorder(combinedStream)
 
-base.play()
-
+base.play().then(()=>{
+overlay.pause()
 renderLoop()
-
+})
 }
 
 function renderLoop(){
+if(!running) return
 
 ctx.clearRect(0,0,canvas.width,canvas.height)
-
-if(!swap){
 ctx.drawImage(base,0,0,canvas.width,canvas.height)
-}
 
 if(base.currentTime>=1.5 && !swap){
 overlay.play()
@@ -155,51 +123,32 @@ swap=true
 }
 
 if(swap){
-
 fade+=0.02
-if(fade>1) fade=1
-
-if(fade<1){
-
-ctx.drawImage(base,0,0,canvas.width,canvas.height)
+if(fade>1)fade=1
+overlay.volume=fade
 
 ctx.globalAlpha=fade
 ctx.drawImage(overlay,0,0,canvas.width,canvas.height)
 ctx.globalAlpha=1
-
-}else{
-
-ctx.drawImage(overlay,0,0,canvas.width,canvas.height)
-
-}
-
-overlay.volume=fade
-bar.value=fade
-
 }
 
 if(overlay.ended){
+running=false
 recorder.stop()
 return
 }
 
-requestAnimationFrame(renderLoop)
-
+setTimeout(renderLoop,1000/60)
 }
 
 save.onclick=()=>{
-
-if(!finished || !blob) return
-
-const url=URL.createObjectURL(blob)
-
+if(!finished||!webmBlob)return
+const url=URL.createObjectURL(webmBlob)
 const a=document.createElement("a")
 a.href=url
 a.download="video.mp4"
 a.click()
-
 }
-
 </script>
 
 </body>
